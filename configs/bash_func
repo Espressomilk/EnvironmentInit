@@ -359,7 +359,7 @@ function popdd
 }
 
 # git regenerate origin
-function git-regenerate
+function gitregenerate
 {
     if [ ! -d .git ]; then
         echo "No git repo found.."
@@ -384,21 +384,6 @@ function git-regenerate
     new_web=$(echo "${repo_web}" | sed "s@http\(s\)\?://@https://${git_rege_name}:${git_rege_password}\@@")
     echo "${new_web}"
     git remote add origin "${new_web}"
-}
-
-# git open website  
-function git-openwebsite
-{
-    if [[ $(git rev-parse --is-inside-work-tree 2>&1) == "true" ]]; then
-        url=$(git config --get remote.origin.url)
-        if [ "$(uname)" == "Darwin" ]; then
-            open "${url}"
-        elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-            xdg-open "${url}"
-        fi
-    else
-        echo "[ERR] Not a git, quit..." 1>&2
-    fi
 }
 
 # sedding
@@ -525,48 +510,88 @@ function offline-download
 {
     #ip="106.14.7.228"
     #base_dir="/root/02_Downloads"
-    ip="108.61.247.112"
-    base_dir="/root/01_Project/03_offline-download"
+    ip="45.77.36.216"
+    base_dir="/root/offline_download"
     user="root"
+    pub_key="$HOME/Documents/AWSCloud/vultr_rsa"
 
-    torrent_dir="${base_dir}/00_torrent/"
-    tool_dir="${base_dir}/02_tools/"
+    torrent_dir="${base_dir}/01_torrent"
+    tool_dir="${base_dir}/00_tools"
     
     if [ -z "$1" ]; then
         echo -e "${green}[HELP MENU]${endcolor}:\n \
             <file> download torrent file\n \
             <link> download link\n \
-            [-s] states of downloading torrents\n \
-            [-c] clear logs\n \
-            [-d] delete current task"
+            [-s] states of downloading torrents"
     elif [ "$1" = "-s" ]; then
-        ssh ${user}@${ip} "${tool_dir}/show_status.sh"
+        ssh -i "$pub_key" ${user}@${ip} "${tool_dir}/show-status.sh"
     elif [ "$1" = "-c" ]; then
-        ssh ${user}@${ip} "${tool_dir}/clean.sh -a"
-        read -p "Continue? [y/n]" answer
-        if [[ ${answer} = "y" ]]  || [[ ${answer} = "Y" ]]; then
-            ssh ${user}@${ip} "${tool_dir}/clean.sh -c"
-        fi
-    elif [ "$1" = "-d" ]; then
-        ssh ${user}@${ip} "${tool_dir}/stop_current_task.sh"
+        ssh -i "$pub_key" ${user}@${ip} "${tool_dir}/clear.sh"
     else
         download_torrent="$1"
         download_torrent_name=$(basename "${download_torrent}")
         simplified_torrent_name=$(echo "${download_torrent_name}" | strings | tr -d "\n" | tr -d " " | tr -d "\t")
-        p1=$(sed -n "1p" ${HOME}/.ssh/offline-code)
         if [ -f "${download_torrent}" ]; then
-            p2=$(sed -n "2p" ${HOME}/.ssh/offline-code)
-            encry_name=$(echo "${simplified_torrent_name}" | base64 | tr "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890+" "${p1}")
-            gbase64 "${download_torrent}" | tr "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890+" "${p2}" > "${HOME}/${encry_name}"
-            scp -r "${HOME}/${encry_name}" ${user}@${ip}:"${torrent_dir}/${encry_name}"
-            ssh -f -n ${user}@${ip} "${tool_dir}/start_download_torrent.sh ${torrent_dir}${encry_name} &"
-            rm "${download_torrent}"
-            rm "${HOME}/${encry_name}"
+            echo "Launch torrent ""${download_torrent}"" download."
+            cp "${download_torrent}" "${HOME}/${simplified_torrent_name}"
+            scp -i "$pub_key" "${HOME}/${simplified_torrent_name}" ${user}@${ip}:"${torrent_dir}/${simplified_torrent_name}"
+            ssh -i "$pub_key" -f -n ${user}@${ip} "${tool_dir}/start-torrent-download.sh ${torrent_dir}/${simplified_torrent_name} &"
+            rm "${HOME}/${simplified_torrent_name}"
         else
-            encry_link=$(echo "${download_torrent}" | base64 | tr "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890+" "${p1}")
-            ssh -f -n ${user}@${ip} "${tool_dir}/start_download_link.sh ${encry_link} &"
+            ssh -i "$pub_key" -f -n ${user}@${ip} "${tool_dir}/start-magnet-download.sh ${download_torrent} &"
         fi
     fi
+}
+
+# Retrieve
+function retrieve
+{
+    user="root"
+    ip="45.77.36.216"
+    basedir="/root/offline_download"
+    pub_key="${HOME}/Documents/AWSCloud/vultr_rsa"
+    if [ -z "$1" ]
+    then
+        echo -e "${green}[HELP MENU]${endcolor}:\n \
+            <file> Retrieve file name\n \
+            [-l] Retrievable list\n \
+            [-d] Remove certian file\n \
+            [-da] Remove all files\n \
+            [-a] Retrieve all files"
+    elif [ "$1" = "-l" ]; then
+        ssh -i "${pub_key}" ${user}@${ip} "${basedir}/00_tools/show-retrivable.sh"
+    elif [ "$1" = "-d" ]; then
+        ssh -i "${pub_key}" ${user}@${ip} "${basedir}/00_tools/remove_downloaded.sh $2"
+        if [ $? -eq 0 ]; then
+            echo "Delete successful!"
+        fi
+    elif [ "$1" = "-da" ]; then
+        ssh -i "${pub_key}" ${user}@${ip} "${basedir}/00_tools/remove_downloaded.sh -a"
+        if [ $? -eq 0 ]; then
+            echo "Delete successful!"
+        fi
+    elif [ "$1" = "-a" ]; then
+        arr=(`ssh -i "${pub_key}" ${user}@${ip} "ls ${basedir}/02_downloads/"`)
+        for i in "${arr[@]}"
+        do
+            rsync -Pav -e "ssh -i ${pub_key}" ${user}@${ip}:${basedir}/02_downloads/"$i" .
+            gpg --pinentry-mode loopback --passphrase-file "${HOME}/.gpgpasswd" --use-embedded-filename "$1"
+            if [ $? -eq 0 ]; then
+                rm "$i"
+            else
+                echo "Decrypt failed..."
+            fi
+        done
+    else
+        rsync -Pav -e "ssh -i ${pub_key}" ${user}@${ip}:${basedir}/02_downloads/"$1" .
+        gpg --pinentry-mode loopback --passphrase-file "${HOME}/.gpgpasswd" --use-embedded-filename "$1"
+        if [ $? -eq 0 ]; then
+            rm "$1"
+        else
+            echo "Decrypt failed..."
+        fi
+    fi
+ 
 }
 
 # Decrypt
@@ -604,12 +629,12 @@ function decrypt
 # Use autojump as a part of cd command
 function relpath()
 { 
-    python -c "import os.path; print os.path.relpath('$1','${2:-$PWD}')"
+    python -c "import os.path; print (os.path.relpath('$1','${2:-$PWD}'))"
 }
 if [[ $(command -v j) ]]; then
     function cd
     {
-        if [[ ${#} -gt 1 || -e "$1" || "$1" == "-" ]]; then
+        if [[ -e "$@" || "$@" == "-" ]]; then
             command cd "$@"
         else
             p1="${PWD}"
@@ -619,7 +644,7 @@ if [[ $(command -v j) ]]; then
     }
     function cdc
     {
-        if [[ ${#} -gt 1 || -e "$1" || "$1" == "-" ]]; then
+        if [[ -e "$@" || "$@" == "-" ]]; then
             command cd "$@"
         else
             jc "$@"
@@ -627,7 +652,7 @@ if [[ $(command -v j) ]]; then
     }
     function cdo
     {
-        if [[ ${#} -gt 1 || -e "$1" || "$1" == "-" ]]; then
+        if [[ -e "$@" || "$@" == "-" ]]; then
             if [ "$(uname)" == "Darwin" ]; then
                 pushd "$@" > /dev/null
                 open . 
@@ -727,46 +752,3 @@ function web
     done
 }
 complete -F _web_complete web 
-
-# automatically unzip
-function q-extract
-{
-    if [ -f $1 ] ; then
-        case $1 in
-            *.tar.bz2)   tar -xvjf $1    ;;
-            *.tar.gz)    tar -xvzf $1    ;;
-            *.tar.xz)    tar -xvJf $1    ;;
-            *.bz2)       bunzip2 $1     ;;
-            *.rar)       rar x $1       ;;
-            *.gz)        gunzip $1      ;;
-            *.tar)       tar -xvf $1     ;;
-            *.tbz2)      tar -xvjf $1    ;;
-            *.tgz)       tar -xvzf $1    ;;
-            *.zip)       unzip $1       ;;
-            *.Z)         uncompress $1  ;;
-            *.7z)        7z x $1        ;;
-            *)           echo "don't know how to extract '$1'..." ;;
-        esac
-    else
-        echo "'$1' is not a valid file!"
-    fi
-}
-
-# automatically zip
-function q-compress
-{
-    if [ -n "$1" ] ; then
-        FILE=$1
-        case $FILE in
-            *.tar) shift && tar -cf $FILE $* ;;
-            *.tar.bz2) shift && tar -cjf $FILE $* ;;
-            *.tar.xz) shift && tar -cJf $FILE $* ;;
-            *.tar.gz) shift && tar -czf $FILE $* ;;
-            *.tgz) shift && tar -czf $FILE $* ;;
-            *.zip) shift && zip $FILE $* ;;
-            *.rar) shift && rar $FILE $* ;;
-        esac
-    else
-        echo "usage: q-compress <foo.tar.gz> ./foo ./bar"
-    fi
-}

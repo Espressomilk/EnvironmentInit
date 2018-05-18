@@ -9,9 +9,3 @@ ranger
 ncdu
 tree
 task
-ctags
-gflags
-glog
-gperftools
-boost
-jsoncpp

@@ -62,23 +62,15 @@ endcolor=$'\e[m'
 alias echo='echo -e'
 
 # Define Server
-vultr_ip="108.61.247.112"
-amazon_ip="52.14.136.27"
-amazon1_ip="52.38.53.205"
-aliyun_ip="106.14.7.228"
-bang_ip="ccom-bang-login.ucsd.edu"
-sorken_ip="sorken.ucsd.edu"
+amazon_ip="54.95.45.92"
+vultr_ip="45.77.36.216"
 
-alias aliyun='ssh -X root@${aliyun_ip}'
-alias amazon='ssh -i "/Users/Hans/.ssh/HanxiaoAmazonServer1.pem" ubuntu@${amazon_ip}'
-alias amazon1='ssh -i "/Users/Hans/Downloads/Hanxiao.pem.txt" ubuntu@${amazon1_ip}'
-alias vultr='ssh -X root@${vultr_ip}'
-alias bang='ssh -X hah114@${bang_ip}'
-alias sorken='ssh -X hah114@${sorken_ip}'
-alias ieng6='ssh -X cs291dah@ieng6.ucsd.edu'
-alias google1="gcloud compute ssh instance-1"
-alias google1-stop="gcloud compute instances stop instance-1"
-alias google1-start="gcloud compute instances start instance-1"
+alias google4="gcloud compute ssh instance-4"
+alias ieng6_253='ssh cs253wct@ieng6.ucsd.edu'
+alias aws='ssh -i "/Users/zephyr/Documents/AWSCloud/aws20180319.pem" ubuntu@${amazon_ip}'
+alias cseweb='ssh zhs128@login.eng.ucsd.edu'
+alias vultr='ssh -i "/Users/zephyr/Documents/AWSCloud/vultr_rsa" root@${vultr_ip}'
+alias g221='ssh -i "/Users/zephyr/Dropbox/Courses/CSE221/rsa/221_rsa" jackshi2013@35.197.27.91'
 
 # Alias for tree
 alias tree='tree -ACN'
@@ -97,3 +89,6 @@ alias hdu='du -sk -- * | sort -n | perl -pe '\''@SI=qw(K M G T P); s:^(\d+?)((\d
 
 # Wget with continue and try infinite times
 alias wget-auto='wget -c -t 0 '
+
+# terminal-notifier
+alias notifydone='terminal-notifier -title "Terminal" -message "Task done!"'
