@@ -575,7 +575,7 @@ function retrieve
         for i in "${arr[@]}"
         do
             rsync -Pav -e "ssh -i ${pub_key}" ${user}@${ip}:${basedir}/02_downloads/"$i" .
-            gpg --pinentry-mode loopback --passphrase-file "${HOME}/.gpgpasswd" --use-embedded-filename "$1"
+            gpg --pinentry-mode loopback --passphrase-file "${HOME}/.gpgpasswd" --use-embedded-filename "$i"
             if [ $? -eq 0 ]; then
                 rm "$i"
             else
@@ -752,3 +752,56 @@ function web
     done
 }
 complete -F _web_complete web 
+
+# chinese novel converter tools
+function novel-format
+{
+    # helper
+    if [ -z "$1" ]
+    then
+        echo -e "${green}[HELP MENU]${endcolor}:\n \
+            <file> # default regular expression: [^第\S\+部.*] and [^第\S\+章.*]   
+            <file> <reg for part> <reg for chapter> "
+        return
+    fi
+    basename="$1"
+    filename="${basename%.*}"
+    # convert the encoding
+    iconv -c -f GB2312 -t UTF-8 "$1" > "$filename.html"
+    wait
+    if [ $? -ne 0 ]; then
+        echo "Enocoding conversion failed."
+        return
+    fi
+
+    if [ -z "$3" ]; then
+        sed -i 's/\(^第\S\+部.*\)\s\+/\<h1\>\1\<\/h1\>\n/g' "$filename.html"
+        sed -i 's/\(^第\S\+章.*\)\s\+/\<h2\>\1\<\/h2\>\n/g' "$filename.html"
+        wait
+        if [ $? -ne 0 ]; then
+            echo "Replacing part and chapter failed."
+            return
+        fi
+    else
+        sed -i 's/\($2\)\s\+/\<h1\>\1\<\/\h1\>\<br\>/g' "$filename.html"
+        sed -i 's/\($3\)\s\+/\<h2\>\1\<\/\h2\>\<br\>/g' "$filename.html"
+        wait
+        if [ $? -ne 0 ]; then
+            echo "Replacing part and chapter failed."
+            return
+        fi
+    fi
+
+    wait
+    sed -z 's@\n@\<br\>@g' "$filename.html" > "${filename}2.html"
+    sed -z 's@\r\n@\<br\>@g' "${filename}2.html" > "${filename}3.html"
+    wait
+    rm "${filename}2.html"
+    mv "${filename}3.html" "${filename}.html"
+    if [ $? -ne 0 ]; then
+        echo "Replacing new-line delimeter failed."
+        return
+    fi
+
+
+}
